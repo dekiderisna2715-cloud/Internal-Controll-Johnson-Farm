@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Johnson Farm - Rencana Internal Control</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 font-sans antialiased text-gray-800">
+
+  <!-- CONFIG: Basis Data Kapasitas Internal & URL Apps Script -->
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycby_NuC3Rj5Ed0QedTZVfO8BirPTWVmlssRuSPHU3rNXlJfC_mBcrgV4TjMDKpYok77W/exec";
+    let currentSheetData = []; 
+
+    // DATA MASTER KAPASITAS KANDANG UNTUK AUTOFILL
+    const DATA_KAPASITAS_MASTER = {
+      "P1": 5356, "P2": 5379, "P3": 5026,
+      "BG1": 3665, "BG2": 5008, "BG3": 3766, "BG4": 3096,
+      "A1": 2028, "A2": 1935, "A3": 1681, "A4": 1637, "A5": 1624,
+      "A6": 1584, "A7": 1349, "A8": 1319, "A9": 1182, "A10": 1284,
+      "A11": 1332, "A12": 830, "A13": 1348,
+      "B1": 1392, "B2": 1304, "B3": 1412, "B4": 1344, "B5": 1326,
+      "B6": 1474, "B7": 1427, "B8": 1504, "B9": 2035, "B10": 2223, "B11": 831
+    };
+  </script>
+
+  <!-- Top Navigation Bar -->
+  <header class="bg-gradient-to-r from-green-600 to-emerald-700 text-white shadow-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <i class="fa-solid fa-shield-halved text-2xl text-yellow-300 animate-pulse"></i>
+        <span class="text-xl font-bold tracking-wider">JOHNSON FARM SYSTEM</span>
+      </div>
+      <nav class="flex space-x-2">
+        <button onclick="switchTab('dashboard')" id="btn-dashboard" class="px-4 py-2 rounded-lg font-medium transition bg-white/20 text-white">
+          <i class="fa-solid fa-chart-pie mr-2"></i>Dashboard
+        </button>
+        <button onclick="switchTab('pindah')" id="btn-pindah" class="px-4 py-2 rounded-lg font-medium transition text-emerald-100 hover:bg-white/10">
+          <i class="fa-solid fa-truck-ramp-box mr-2"></i>Perencanaan Pindah
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content Wrapper -->
+  <main class="max-w-7xl mx-auto px-4 py-8">
+    
+    <!-- ================= TAB 1: DASHBOARD VIEW ================= -->
+    <section id="tab-dashboard" class="space-y-6">
+      
+      <!-- HEADER DASHBOARD RENCANA INTERNAL CONTROL -->
+      <div class="border-b border-gray-200 pb-4">
+        <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">RENCANA INTERNAL CONTROL</h1>
+        <p class="text-gray-500 text-sm mt-1">Sistem kendali operasional, mutasi kandang, dan monitoring data terintegrasi secara penuh.</p>
+      </div>
+
+      <!-- Panel Kontrol Utama Dasbor -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Card 1: Pemilih Modul Sheet -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-600 block mb-1">Modul Kerja</span>
+            <h3 class="text-lg font-bold text-gray-800 mb-3">Pilih Basis Data Sheet</h3>
+          </div>
+          <div class="relative">
+            <select id="sheet-selector" onchange="loadSheetData()" class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-emerald-500 focus:border-emerald-500 block p-3 shadow-inner font-semibold cursor-pointer">
+              <option value="">-- Memuat List Sheet --</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Card 2: Pencarian Dinamis -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-600 block mb-1">Penyaringan data</span>
+            <h3 class="text-lg font-bold text-gray-800 mb-3">Pencarian Data Cepat</h3>
+          </div>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+              <i class="fa-solid fa-magnifying-glass text-sm"></i>
+            </span>
+            <input type="text" id="search-input" oninput="filterTableData()" disabled placeholder="Pilih sheet terlebih dahulu..." class="w-full pl-9 pr-4 py-3 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 shadow-inner transition disabled:cursor-not-allowed">
+          </div>
+        </div>
+
+        <!-- Card 3: Status Koneksi -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-600 block mb-1">Informasi Aktivitas</span>
+            <h3 class="text-lg font-bold text-gray-800 mb-2">Status Koneksi</h3>
+          </div>
+          <div class="flex items-center space-x-2 text-sm font-medium py-2.5 text-gray-600">
+            <span class="h-3 w-3 rounded-full bg-green-500 inline-block animate-pulse"></span>
+            <span>Semua Data Berhasil Disinkronkan</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div id="dash-loading" class="hidden text-center py-12">
+        <i class="fa-solid fa-circle-notch text-4xl text-emerald-600 animate-spin"></i>
+        <p class="text-gray-500 mt-3 font-medium">Sinkronisasi data Internal Control...</p>
+      </div>
+
+      <!-- Panduan Sebelum Memilih Data -->
+      <div id="placeholder-guide" class="bg-white rounded-2xl p-12 text-center border border-dashed border-gray-300 text-gray-400">
+        <i class="fa-solid fa-folder-open text-4xl mb-3 text-gray-300 block"></i>
+        <p class="font-medium text-base">Silakan pilih salah satu basis data pada menu <span class="text-emerald-600 font-semibold">Modul Kerja</span> di atas untuk menampilkan isi tabel.</p>
+      </div>
+
+      <!-- Table Card -->
+      <div id="table-container" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hidden">
+        <div class="overflow-x-auto w-full">
+          <table class="w-full text-sm text-left text-gray-600 min-w-max">
+            <thead id="table-header" class="text-xs text-gray-700 uppercase bg-gray-100 border-b border-gray-200 sticky top-0">
+              <!-- Dinamis via JS -->
+            </thead>
+            <tbody id="table-body" class="divide-y divide-gray-100">
+              <!-- Dinamis via JS -->
+            </tbody>
+          </table>
+        </div>
+        <div id="no-data-message" class="hidden text-center py-8 text-gray-400">
+          <i class="fa-solid fa-magnifying-glass-minus text-2xl mb-2 block"></i>
+          Tidak ada data internal control yang cocok dengan pencarian Anda.
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 2: PERENCANAAN PINDAH ================= -->
+    <section id="tab-pindah" class="hidden max-w-3xl mx-auto">
+      <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">Form Perencanaan Pindah Ayam</h2>
+          <p class="text-gray-500 text-sm mt-1">Masukkan nama kandang tujuan, kapasitas ayam otomatis terisi dari sistem.</p>
+        </div>
+        
+        <form id="form-pindah" onsubmit="submitFormPindah(event)" class="space-y-6">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Kandang Asal</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                <i class="fa-solid fa-warehouse"></i>
+              </span>
+              <input type="text" id="asal" required placeholder="Contoh: Kandang Garuda 1" class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 shadow-inner uppercase">
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center mb-3">
+              <label class="text-sm font-semibold text-gray-700">Daftar Kandang Tujuan & Kapasitas Otomatis</label>
+              <button type="button" onclick="addTujuanRow()" class="text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">
+                <i class="fa-solid fa-plus mr-1"></i> Tambah Tujuan
+              </button>
+            </div>
+            <div id="tujuan-list-container" class="space-y-3">
+              <!-- Baris Utama Form -->
+              <div class="tujuan-row grid grid-cols-1 md:grid-cols-3 gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200 relative">
+                <div>
+                  <label class="block text-xs font-medium text-gray-500 mb-1">Kandang Tujuan</label>
+                  <input type="text" required oninput="handleAutofillKapasitas(this)" placeholder="Contoh: P1, BG2, A1" class="tujuan shadow-inner w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm uppercase">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-500 mb-1">Kapasitas (Otomatis)</label>
+                  <input type="number" required readonly placeholder="Ketik nama kandang..." class="jumlah shadow-inner w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm font-bold text-emerald-700 cursor-not-allowed">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-500 mb-1">Tanggal Pindah</label>
+                  <input type="date" required class="tanggal shadow-inner w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Total Kapasitas Akumulasi View -->
+          <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex justify-between items-center shadow-sm">
+            <span class="text-sm font-bold text-emerald-800 uppercase tracking-wider">Total Kapasitas Kandang Tujuan:</span>
+            <span id="total-kapasitas-display" class="text-xl font-extrabold text-emerald-600 bg-white px-4 py-1.5 rounded-lg border border-emerald-100 shadow-inner">0</span>
+          </div>
+
+          <div class="pt-4 border-t border-gray-100 flex justify-end">
+            <button type="submit" id="btn-submit" class="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-xl shadow-md">
+              <i class="fa-solid fa-paper-plane mr-2"></i>Kirim Perencanaan
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      fetchSheetNames();
+    });
+
+    function switchTab(tab) {
+      const tabDash = document.getElementById('tab-dashboard');
+      const tabPindah = document.getElementById('tab-pindah');
+      const btnDash = document.getElementById('btn-dashboard');
+      const btnPindah = document.getElementById('btn-pindah');
+
+      if (tab === 'dashboard') {
+        tabDash.classList.remove('hidden');
+        tabPindah.classList.add('hidden');
+        btnDash.className = "px-4 py-2 rounded-lg font-medium transition bg-white/20 text-white";
+        btnPindah.className = "px-4 py-2 rounded-lg font-medium transition text-emerald-100 hover:bg-white/10";
+      } else {
+        tabDash.classList.add('hidden');
+        tabPindah.classList.remove('hidden');
+        btnDash.className = "px-4 py-2 rounded-lg font-medium transition text-emerald-100 hover:bg-white/10";
+        btnPindah.className = "px-4 py-2 rounded-lg font-medium transition bg-white/20 text-white";
+      }
+    }
+
+    async function fetchSheetNames() {
+      try {
+        const response = await fetch(API_URL);
+        const data = await response.json();
+        const selector = document.getElementById('sheet-selector');
+        selector.innerHTML = '<option value="">-- Pilih Modul Sheet --</option>';
+        
+        data.sheets.forEach(name => {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          selector.appendChild(opt);
+        });
+      } catch (err) {
+        alert("Gagal memuat daftar sheet.");
+        console.error(err);
+      }
+    }
+
+    async function loadSheetData() {
+      const sheetName = document.getElementById('sheet-selector').value;
+      const tableContainer = document.getElementById('table-container');
+      const placeholderGuide = document.getElementById('placeholder-guide');
+      const loading = document.getElementById('dash-loading');
+      const searchInput = document.getElementById('search-input');
+      
+      searchInput.value = ""; 
+
+      if (!sheetName) {
+        tableContainer.classList.add('hidden');
+        placeholderGuide.classList.remove('hidden');
+        searchInput.disabled = true;
+        searchInput.placeholder = "Pilih sheet terlebih dahulu...";
+        searchInput.classList.replace('bg-white', 'bg-gray-100');
+        return;
+      }
+
+      loading.classList.remove('hidden');
+      tableContainer.classList.add('hidden');
+      placeholderGuide.classList.add('hidden');
+
+      try {
+        const response = await fetch(`${API_URL}?sheet=${encodeURIComponent(sheetName)}`);
+        const data = await response.json();
+        
+        if (data.length === 0) {
+          alert("Sheet kosong atau data tidak valid.");
+          loading.classList.add('hidden');
+          placeholderGuide.classList.remove('hidden');
+          return;
+        }
+
+        currentSheetData = data; 
+
+        const headers = Object.keys(data[0]);
+        const headerHtml = `<tr>${headers.map(h => `<th class="px-6 py-4 font-bold text-gray-700 tracking-wider border-b border-gray-200 text-left">${h}</th>`).join('')}</tr>`;
+        document.getElementById('table-header').innerHTML = headerHtml;
+
+        renderTableRows(currentSheetData);
+
+        tableContainer.classList.remove('hidden');
+        searchInput.disabled = false;
+        searchInput.placeholder = "Ketik untuk menyaring data...";
+        searchInput.classList.replace('bg-gray-100', 'bg-white');
+
+      } catch (err) {
+        alert("Gagal memuat data sheet.");
+        console.error(err);
+        placeholderGuide.classList.remove('hidden');
+      } finally {
+        loading.classList.add('hidden');
+      }
+    }
+
+    function renderTableRows(dataToRender) {
+      if (dataToRender.length === 0) {
+        document.getElementById('table-body').innerHTML = "";
+        document.getElementById('no-data-message').classList.remove('hidden');
+        return;
+      }
+
+      document.getElementById('no-data-message').classList.add('hidden');
+      const headers = Object.keys(currentSheetData[0]);
+      
+      const bodyHtml = dataToRender.map(row => {
+        return `<tr class="hover:bg-gray-50 transition border-b border-gray-100">${headers.map(h => {
+          let value = row[h];
+          
+          if (value && typeof value === 'string' && (value.includes('GMT') || /^\d{4}-\d{2}-\d{2}/.test(value))) {
+            const dateObj = new Date(value);
+            if (!isNaN(dateObj.getTime())) {
+              const day = String(dateObj.getDate()).padStart(2, '0');
+              const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+              const year = dateObj.getFullYear();
+              value = `${day}/${month}/${year}`;
+            }
+          }
+          
+          if (value === true || value === "TRUE") {
+            return `<td class="px-6 py-4 font-medium text-green-600"><i class="fa-solid fa-square-check text-lg"></i></td>`;
+          } else if (value === false || value === "FALSE") {
+            return `<td class="px-6 py-4 font-medium text-gray-300"><i class="fa-regular fa-square text-lg"></i></td>`;
+          }
+          
+          if (typeof value === 'number' && h.toLowerCase().includes('kapasitas') || h.toLowerCase().includes('populasi') || h.toLowerCase().includes('capacity')) {
+            value = value.toLocaleString('id-ID');
+          }
+          
+          return `<td class="px-6 py-4 font-medium whitespace-nowrap text-gray-700">${value !== null && value !== undefined ? value : ""}</td>`;
+        }).join('')}</tr>`;
+      }).join('');
+      
+      document.getElementById('table-body').innerHTML = bodyHtml;
+    }
+
+    function filterTableData() {
+      const keyword = document.getElementById('search-input').value.toLowerCase().trim();
+      if (keyword === "") {
+        renderTableRows(currentSheetData);
+        return;
+      }
+      const filteredData = currentSheetData.filter(row => {
+        return Object.values(row).some(value => String(value).toLowerCase().includes(keyword));
+      });
+      renderTableRows(filteredData);
+    }
+
+    // ================= FITUR AUTOFILL KAPASITAS DINAMIS =================
+    function handleAutofillKapasitas(inputElement) {
+      const namaKandang = inputElement.value.trim().toUpperCase();
+      const rowContainer = inputElement.closest('.tujuan-row');
+      const kapasitasInput = rowContainer.querySelector('.jumlah');
+      
+      if (DATA_KAPASITAS_MASTER[namaKandang] !== undefined) {
+        kapasitasInput.value = DATA_KAPASITAS_MASTER[namaKandang];
+      } else {
+        kapasitasInput.value = ""; 
+      }
+      calculateTotalKapasitas();
+    }
+
+    function calculateTotalKapasitas() {
+      const jumlahInputs = document.querySelectorAll('.jumlah');
+      let total = 0;
+      jumlahInputs.forEach(input => {
+        const val = parseInt(input.value);
+        if (!isNaN(val)) total += val;
+      });
+      document.getElementById('total-kapasitas-display').textContent = total.toLocaleString('id-ID');
+    }
+
+    function addTujuanRow() {
+      const container = document.getElementById('tujuan-list-container');
+      const newRow = document.createElement('div');
+      newRow.className = "tujuan-row grid grid-cols-1 md:grid-cols-3 gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200 relative pt-8 md:pt-4";
+      newRow.innerHTML = `
+        <button type="button" onclick="this.parentElement.remove(); calculateTotalKapasitas();" class="absolute top-2 right-2 text-red-500 hover:text-red-700 text-sm"><i class="fa-solid fa-trash-can"></i> Hapus</button>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">Kandang Tujuan</label>
+          <input type="text" required oninput="handleAutofillKapasitas(this)" placeholder="Contoh: P1, BG2" class="tujuan shadow-inner w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm uppercase">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">Kapasitas (Otomatis)</label>
+          <input type="number" required readonly placeholder="Ketik nama kandang..." class="jumlah shadow-inner w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm font-bold text-emerald-700 cursor-not-allowed">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">Tanggal Pindah</label>
+          <input type="date" required class="tanggal shadow-inner w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm">
+        </div>
+      `;
+      container.appendChild(newRow);
+    }
+
+    async function submitFormPindah(event) {
+      event.preventDefault();
+      const btnSubmit = document.getElementById('btn-submit');
+      const asal = document.getElementById('asal').value.toUpperCase();
+      const rows = document.querySelectorAll('.tujuan-row');
+      const tujuanList = [];
+
+      rows.forEach(row => {
+        const tujuanNama = row.querySelector('.tujuan').value.toUpperCase();
+        const jumlahAyam = parseInt(row.querySelector('.jumlah').value);
+        
+        if (!jumlahAyam) {
+          alert(`Kandang "${tujuanNama}" tidak ditemukan di database kapasitas. Mohon periksa kembali.`);
+          throw new Error("Kandang tidak valid");
+        }
+
+        tujuanList.push({
+          tujuan: tujuanNama,
+          jumlah: jumlahAyam,
+          tanggal: row.querySelector('.tanggal').value
+        });
+      });
+
+      const payload = { asal: asal, tujuanList: tujuanList };
+      btnSubmit.disabled = true;
+      btnSubmit.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin mr-2"></i>Mengirim...`;
+
+      try {
+        await fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        alert("Rencana pemindahan ayam berhasil dikirim!");
+        document.getElementById('form-pindah').reset();
+        document.getElementById('total-kapasitas-display').textContent = "0";
+      } catch (err) {
+        alert("Terjadi kesalahan saat mengirim perencanaan.");
+        console.error(err);
+      } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = `<i class="fa-solid fa-paper-plane mr-2"></i>Kirim Perencanaan`;
+      }
+    }
+  </script>
+</body>
+</html>
